@@ -3,7 +3,6 @@ output "outputs" {
     vpc_id        = aws_vpc.vpc.id
     pub_sbnt_ids  = aws_subnet.public.*.id
     priv_sbnt_ids = aws_subnet.private.*.id
-    db_sbnt_ids   = aws_subnet.db.*.id
     az            = ["${var.region}a", "${var.region}b", "${var.region}c"]
   }
   description = "VPC id, List of all public, private and db subnet IDs"

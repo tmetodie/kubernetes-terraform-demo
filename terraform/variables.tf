@@ -40,17 +40,23 @@ variable "k8s_version" {
     description = "Kubernetes version to be used."
 }
 
-variable "rds_creds" {
-    type = map
-    description = "(optional) describe your variable"
-}
-
 variable "s3_log_bucket" {
     type = string
     description = "(optional) describe your variable"
 }
 
-variable "elb_account_id" {
-    type = string
-    description = "(optional) describe your variable"
+variable "cluster_log_types" {
+    type = list
+    description = "A list of the desired control plane logging to enable"
+}
+
+#
+variable "prim_region" {
+    type        = string
+    description = "Primary AWS region where solution should be deployed."
+}
+
+variable "fail_region" {
+    type        = string
+    description = "Failover AWS region where solution should be deployed."
 }

@@ -23,14 +23,3 @@ resource "aws_kms_key" "eks" {
 
   tags = merge({Name="${var.naming}-kms"}, var.common_tags)
 }
-
-resource "aws_acm_certificate" "acm_cert" {
-  domain_name       = "tmetodie-demo.com"
-  validation_method = "DNS"
-
-  tags = var.common_tags
-
-  lifecycle {
-    create_before_destroy = true
-  }
-}

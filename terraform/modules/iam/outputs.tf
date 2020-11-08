@@ -1,4 +1,3 @@
-
 output "outputs" {
   value       = {
     svc = aws_iam_role.eks_svc_role.arn

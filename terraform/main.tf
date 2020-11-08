@@ -1,10 +1,16 @@
+data "aws_region" "current" {}
+
 locals {
-    naming = "${lower(var.short_region)}-${lower(var.environment)}-${lower(var.project)}"
+    short_region = "${lower(substr(element(split("-", data.aws_region.current.name),0), 0, 1))}${lower(substr(element(split("-", data.aws_region.current.name),1), 0, 1))}${lower(substr(element(split("-", data.aws_region.current.name),2), 0, 1))}"
     common_tags = {
-        "Region" = var.region
+        "Region" = data.aws_region.current.name
         "Environment" = var.environment
         "Project" = var.project
     }
+}
+
+locals {
+  naming = "${local.short_region}-${lower(var.environment)}-${lower(var.project)}"
 }
 
 data "aws_caller_identity" "current" {}
@@ -12,7 +18,7 @@ data "aws_caller_identity" "current" {}
 module "network" {
     source = "./modules/network"
 
-    region      = var.region
+    region      = data.aws_region.current.name
     naming      = local.naming
     common_tags = local.common_tags
 
@@ -36,42 +42,31 @@ module "iam" {
   common_tags = local.common_tags
 
   s3_log_bucket  = var.s3_log_bucket
-  elb_account_id = var.elb_account_id
 }
 
 module "eks" {
   source = "./modules/eks"
 
+  region      = data.aws_region.current.name
   naming      = local.naming
   common_tags = local.common_tags
 
+  s3_log_bucket         = var.s3_log_bucket
   eks_api_public_access = var.eks_api_public_access
   k8s_version           = var.k8s_version
   security_data         = module.security.outputs
   network_data          = module.network.outputs
   iam_data              = module.iam.outputs
+  cluster_log_types     = var.cluster_log_types
 }
 
-module "rds" {
-  source = "./modules/rds"
+module "kubenetes" {
+  source = "./modules/kubernetes"
 
-  naming      = local.naming
-  common_tags = local.common_tags
-  
-  network_data  = module.network.outputs
-  rds_creds     = var.rds_creds
-  security_data = module.security.outputs
-}
-
-resource "null_resource" "deploy_service" {
-  triggers = {
-    build_number = timestamp()
-  }
-
-  provisioner "local-exec" {
-    # command = "./deploy.sh ${module.eks.cluster_name} ${data.aws_caller_identity.current.account_id}.dkr.ecr.${var.region}.amazonaws.com/${local.naming}-cicd-ecr-web ${data.aws_caller_identity.current.account_id}.dkr.ecr.${var.region}.amazonaws.com/${local.naming}-cicd-ecr-api ${var.s3_log_bucket} ${element(module.security.outputs.ctrl_plane_sg_ids, 0)} ${element(module.security.outputs.ctrl_plane_sg_ids, 0)} ${module.rds.rds_host} ${module.security.outputs.alb_cert_arn} ${var.rds_creds.username} ${var.rds_creds.password}"
-    command = "./deploy.sh ${module.eks.cluster_name} ${data.aws_caller_identity.current.account_id}.dkr.ecr.${var.region}.amazonaws.com/${local.naming}-cicd-ecr-web ${data.aws_caller_identity.current.account_id}.dkr.ecr.${var.region}.amazonaws.com/${local.naming}-cicd-ecr-api ${var.s3_log_bucket} ${element(module.security.outputs.ctrl_plane_sg_ids, 0)} ${element(module.security.outputs.ctrl_plane_sg_ids, 0)} ${module.rds.rds_host} 'arn:aws:acm:eu-central-1:490051574038:certificate/1ca5c5bb-016f-4988-ad1e-40abafe5cde1' ${var.rds_creds.username} ${var.rds_creds.password}"
-    working_dir = "../../scripts"
-    interpreter = ["/bin/bash", "-c"]
-  }
+  region        = data.aws_region.current.name
+  prim_region   = var.prim_region
+  fail_region   = var.fail_region
+  naming        = local.naming
+  s3_log_bucket = var.s3_log_bucket
+  node_group    = module.eks.eks.node_group
 }

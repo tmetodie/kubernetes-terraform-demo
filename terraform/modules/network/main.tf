@@ -22,15 +22,10 @@ resource "aws_subnet" "public" {
   map_public_ip_on_launch = true
 
   tags = {
-    Name                             = "${var.naming}-sbnt-pub-${count.index}"
-    "kubernetes.io/role/elb"         = "1"
-    "kubernetes.io/role/alb-ingress" = "1"
-  }
-
-  lifecycle {
-    ignore_changes = [
-      tags,
-    ]
+    Name                                      = "${var.naming}-sbnt-pub-${count.index}"
+    "kubernetes.io/role/elb"                  = "1"
+    "kubernetes.io/role/alb-ingress"          = "1"
+    "kubernetes.io/cluster/${var.naming}-eks" = "shared"
   }
 }
 
@@ -47,41 +42,10 @@ resource "aws_subnet" "private" {
     var.common_tags,
     {
       Name                                       = "${var.naming}-sbnt-priv-${count.index}"
-      "kubernetes.io/cluster/${var.naming}-eks"  = "1"
       "kubernetes.io/role/internal-elb"          = "1"
       "kubernetes.io/role/alb-ingress"           = "1"
-      "kubernetes.io/cluster/ew1-dev-demo-eks" = "shared"
+      "kubernetes.io/cluster/${var.naming}-eks" = "shared"
     })
-
-  lifecycle {
-    ignore_changes = [
-      tags,
-    ]
-  }
-}
-
-resource "aws_subnet" "db" {
-  count = var.az_count
-
-  availability_zone       = join("", [var.region, element(var.az_zones, count.index)])
-  cidr_block              = cidrsubnet(var.cidr_block, 9, count.index+var.az_count+var.az_count)
-  vpc_id                  = aws_vpc.vpc.id
-  map_public_ip_on_launch = false
-
-  tags = merge(
-    var.common_tags,
-    {
-      Name                                      = "${var.naming}-sbnt-db-${count.index}"
-      "kubernetes.io/cluster/${var.naming}-eks" = "1"
-      "kubernetes.io/role/internal-elb"         = "1"
-      "kubernetes.io/role/alb-ingress"          = "1"
-    })
-
-  lifecycle {
-    ignore_changes = [
-      tags,
-    ]
-  }
 }
 
 # Internet Gateway
@@ -140,11 +104,5 @@ resource "aws_route_table_association" "public" {
 resource "aws_route_table_association" "private" {
   count          = length(aws_subnet.private)
   subnet_id      = aws_subnet.private[count.index].id
-  route_table_id = aws_default_route_table.private.id
-}
-
-resource "aws_route_table_association" "db" {
-  count          = length(aws_subnet.db)
-  subnet_id      = aws_subnet.db[count.index].id
   route_table_id = aws_default_route_table.private.id
 }
