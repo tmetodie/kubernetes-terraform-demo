@@ -1,0 +1,58 @@
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: custom-kibana
+  namespace: default
+  labels:
+    app: custom-kibana
+    role: kibana
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+        app: custom-kibana
+  template:
+    metadata:
+      labels:
+        app: custom-kibana
+        role: kibana
+    spec:
+      containers:
+      - name: custom-kibana
+        image: docker.elastic.co/kibana/kibana:7.6.1
+        imagePullPolicy: Always
+        env:
+        - name: XPACK_INFRA_SOURCES_DEFAULT_LOGALIAS
+          value: filebeat-*,kibana_sample_data_logs*,logstash-*
+        - name: CLUSTER_NAME
+          value: custom-es
+        - name: ELASTICSEARCH_HOSTS
+          value: http://elasticsearch-custom:9200
+        - name: LOGGING_QUIET
+          value: "true"
+        - name: ELASTICSEARCH_REQUESTTIMEOUT
+          value: "300000"
+        - name: ELASTICSEARCH_SHARDTIMEOUT
+          value: "300000"
+        ports:
+        - containerPort: 5601
+          name: http
+          protocol: TCP
+      terminationGracePeriodSeconds: 10
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: custom-kibana-service
+  labels:
+    app: custom-kibana
+  namespace: default
+spec:
+  type: LoadBalancer
+  selector:
+    app: custom-kibana
+  ports:
+  - port: 5601
+    protocol: TCP
+    targetPort: 5601
